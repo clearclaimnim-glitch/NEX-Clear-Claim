@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clear Claim NEX - ระบบบริหารจัดการ วิเคราะห์ และเคลียร์เคลมสินค้า</title>
+  
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts: Outfit & Sarabun for Thai compatibility -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- SheetJS (xlsx.js) for Client-side parsing and exporting -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'Sarabun', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              navy: '#1E3E62',
+              darknavy: '#0B192C',
+              sky: '#A0C4FF',
+              skylight: '#D0E1FD',
+              pink: '#FFADAD',
+              pinklight: '#FFEBEB',
+              orange: '#FFD6A5',
+              cream: '#F8F9FA',
+              creambg: '#FFF5F5',
+              mint: '#E8F5E9',
+              purple: '#F3E5F5',
+            }
+          },
+          boxShadow: {
+            card: '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.03)',
+            header: '0 2px 10px rgba(11, 25, 44, 0.08)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom Vanilla CSS Styles -->
+  <style>
+    /* Custom Scrollbar for modern styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F1F1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #C1C1C1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #A8A8A8;
+    }
+
+    /* Sticky table classes */
+    .table-container {
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    .sticky-header th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #1E3E62;
+      color: white;
+    }
+    /* Frozen first columns */
+    .frozen-col-1 {
+      position: sticky;
+      left: 0;
+      z-index: 5;
+      background-color: white;
+    }
+    .frozen-col-2 {
+      position: sticky;
+      left: 48px; /* Width of the index column */
+      z-index: 5;
+      background-color: white;
+      box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.15);
+    }
+    /* Hover adjustments for frozen columns */
+    tr:hover .frozen-col-1,
+    tr:hover .frozen-col-2 {
+      background-color: #F0F4F8 !important;
+    }
+    th.frozen-header-1 {
+      position: sticky;
+      left: 0;
+      z-index: 12;
+      background-color: #1E3E62 !important;
+    }
+    th.frozen-header-2 {
+      position: sticky;
+      left: 48px;
+      z-index: 12;
+      background-color: #1E3E62 !important;
+      box-shadow: 4px 0 8px -4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Smooth Fading Animations */
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Modal Animation */
+    .modal-open {
+      animation: modalScale 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes modalScale {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-brand-cream min-h-screen text-slate-800 font-sans flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-brand-darknavy text-white px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-header sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="bg-brand-sky p-2 rounded-lg text-brand-darknavy flex items-center justify-center">
+        <i class="fa-solid fa-truck-ramp-box text-xl animate-pulse"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-wider text-white">CLEAR CLAIM NEX</h1>
+        <p class="text-xs text-brand-sky font-light">ระบบบริหารจัดการ วิเคราะห์ และเคลียร์เคลมสินค้า</p>
+      </div>
+    </div>
+    
+    <div class="flex flex-wrap items-center gap-3">
+      <!-- Hidden file input -->
+      <input type="file" id="excel-file-input" accept=".xls,.xlsx,.csv" class="hidden" onchange="handleFileSelect(event)">
+      
+      <!-- Import Button -->
+      <button onclick="triggerFileInput()" class="bg-brand-sky hover:bg-brand-skylight text-brand-darknavy font-semibold px-4 py-2 rounded-lg text-sm transition-all duration-200 shadow-sm flex items-center gap-2 transform active:scale-95">
+        <i class="fa-solid fa-file-import"></i>
+        <span>📂 นำเข้า Excel/CSV</span>
+      </button>
+
+      <!-- Export Button -->
+      <button onclick="exportToExcel()" class="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-lg text-sm transition-all duration-200 shadow-sm flex items-center gap-2 transform active:scale-95">
+        <i class="fa-solid fa-file-excel text-emerald-400"></i>
+        <span>📥 ส่งออก Excel</span>
+      </button>
+
+      <!-- Notification Badge -->
+      <div class="relative cursor-pointer" onclick="toggleNotificationPanel()">
+        <div class="bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-colors flex items-center justify-center">
+          <i class="fa-solid fa-bell text-brand-pink text-lg"></i>
+          <span id="notif-count" class="absolute -top-1 -right-1 bg-brand-pink text-brand-darknavy font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-brand-darknavy">0</span>
+        </div>
+        <!-- Dropdown Notifications Panel -->
+        <div id="notif-dropdown" class="hidden absolute right-0 mt-3 w-80 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-50 fade-in">
+          <div class="bg-brand-navy text-white px-4 py-3 font-semibold text-sm flex justify-between items-center">
+            <span>รายการแจ้งเตือนการนำเข้า</span>
+            <button onclick="clearNotifications()" class="text-xs text-brand-sky hover:underline">เคลียร์ทั้งหมด</button>
+          </div>
+          <div id="notif-list" class="max-h-60 overflow-y-auto divide-y divide-slate-100">
+            <div class="p-4 text-center text-xs text-slate-400">ไม่มีประวัติการนำเข้าไฟล์ข้อมูล</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Profile -->
+      <div class="flex items-center gap-3 pl-3 border-l border-slate-700">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-sky to-brand-pink flex items-center justify-center text-brand-darknavy font-bold text-xs shadow-inner">
+          AD
+        </div>
+        <div class="hidden lg:block text-left">
+          <p class="text-xs font-semibold leading-none">Administrator</p>
+          <p class="text-[10px] text-slate-400 leading-none mt-1">Admin Account</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Drag and Drop Dropzone -->
+  <div id="dropzone" class="mx-6 mt-4 p-6 border-2 border-dashed border-brand-sky bg-brand-skylight/20 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-brand-skylight/40 transition-all duration-300 gap-2 select-none group"
+       ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)" onclick="triggerFileInput()">
+    <i class="fa-solid fa-cloud-arrow-up text-4xl text-brand-navy group-hover:scale-110 transition-transform duration-300"></i>
+    <p class="text-sm font-semibold text-brand-navy">ลากและวางไฟล์รายงานเคลม หรือกดอัปโหลดตรงนี้เพื่อเพิ่มข้อมูล</p>
+    <p class="text-xs text-slate-500">รองรับนามสกุลไฟล์ XLS, XLSX และ CSV (ประมวลผลและคัดแยกข้อมูลซ้ำอัตโนมัติ)</p>
+  </div>
+
+  <!-- Real-time Deduplication Banner Notification -->
+  <div id="dedup-banner" class="hidden mx-6 mt-4 p-4 bg-brand-pinklight border border-brand-pink text-slate-800 rounded-xl flex items-start gap-3 fade-in">
+    <div class="bg-brand-pink text-brand-darknavy p-1.5 rounded-lg flex items-center justify-center mt-0.5">
+      <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+    </div>
+    <div class="flex-1">
+      <h3 class="font-semibold text-sm text-brand-darknavy">สรุปการอัปเดตข้อมูล & การตัดรายการซ้ำล่าสุด</h3>
+      <p id="dedup-banner-text" class="text-xs mt-0.5 text-slate-600">นำเข้าไฟล์สำเร็จ ประมวลผลเสร็จสิ้น</p>
+    </div>
+    <button onclick="closeDedupBanner()" class="text-slate-400 hover:text-slate-600">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <main class="flex-1 p-6 flex flex-col gap-6">
+
+    <!-- Global Search & Time Toggle Filters -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center bg-white p-4 rounded-2xl shadow-card">
+      <!-- Search Bar -->
+      <div class="lg:col-span-6 relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400"></i>
+        <input type="text" id="global-search" oninput="triggerDataFilter()" placeholder="ค้นหาอัจฉริยะ (เลขที่บิล, ชื่อบริษัทผู้ส่ง, ผู้รับ, ทะเบียนรถ, เลขที่รับบิล)" class="w-full bg-slate-50 border-0 rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-sky/50 transition-all">
+      </div>
+
+      <!-- Time Frequency Toggle Selector -->
+      <div class="lg:col-span-6 flex justify-end items-center gap-3">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Time Frequency View:</span>
+        <div class="bg-slate-100 p-1.5 rounded-xl flex gap-1 shadow-inner">
+          <button onclick="setTimeFrequency('Daily')" id="tf-Daily" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 tf-btn bg-white text-brand-navy shadow-sm">Daily</button>
+          <button onclick="setTimeFrequency('Weekly')" id="tf-Weekly" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 tf-btn text-slate-500 hover:text-slate-800">Weekly</button>
+          <button onclick="setTimeFrequency('Month')" id="tf-Month" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 tf-btn text-slate-500 hover:text-slate-800">Month</button>
+          <button onclick="setTimeFrequency('Year')" id="tf-Year" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 tf-btn text-slate-500 hover:text-slate-800">Year</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary KPI Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <!-- Card 1: Total Claims -->
+      <div class="bg-[#FFF0F0] p-5 rounded-2xl shadow-card border border-brand-pink/30 flex flex-col justify-between relative overflow-hidden group hover:scale-[1.02] transition-transform duration-200">
+        <div class="absolute -right-3 -top-3 w-16 h-16 bg-brand-pink/20 rounded-full flex items-center justify-center text-brand-pink text-3xl group-hover:scale-110 transition-transform duration-300">
+          <i class="fa-solid fa-file-invoice"></i>
+        </div>
+        <span class="text-xs font-semibold text-slate-500">เคสเคลมทั้งหมด</span>
+        <h3 id="kpi-total-claims" class="text-3xl font-bold text-brand-navy mt-4">0</h3>
+        <p class="text-[10px] text-slate-500 mt-2">จำนวนเคสในระบบ</p>
+      </div>
+
+      <!-- Card 2: Claims by Bill Type -->
+      <div class="bg-[#EEF4FF] p-5 rounded-2xl shadow-card border border-brand-sky/30 flex flex-col justify-between relative overflow-hidden group hover:scale-[1.02] transition-transform duration-200">
+        <div class="absolute -right-3 -top-3 w-16 h-16 bg-brand-sky/20 rounded-full flex items-center justify-center text-brand-navy text-3xl group-hover:scale-110 transition-transform duration-300">
+          <i class="fa-solid fa-receipt"></i>
+        </div>
+        <span class="text-xs font-semibold text-slate-500">ประเภทบิลสูงสุด</span>
+        <h3 id="kpi-top-bill-type" class="text-lg font-bold text-brand-navy mt-4 leading-snug">Normal</h3>
+        <p id="kpi-top-bill-count" class="text-[10px] text-slate-500 mt-1">0 เคส</p>
+      </div>
+
+      <!-- Card 3: Claims by Customer Type -->
+      <div class="bg-[#F7F2FF] p-5 rounded-2xl shadow-card border border-purple-200 flex flex-col justify-between relative overflow-hidden group hover:scale-[1.02] transition-transform duration-200">
+        <div class="absolute -right-3 -top-3 w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-3xl group-hover:scale-110 transition-transform duration-300">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <span class="text-xs font-semibold text-slate-500">ประเภทลูกค้าสูงสุด</span>
+        <h3 id="kpi-top-cust-type" class="text-lg font-bold text-brand-navy mt-4 leading-snug">เงินสด</h3>
+        <p id="kpi-top-cust-count" class="text-[10px] text-slate-500 mt-1">0 เคส</p>
+      </div>
+
+      <!-- Card 4: Value Claims vs Approved -->
+      <div class="bg-[#EAFDF5] p-5 rounded-2xl shadow-card border border-emerald-100 flex flex-col justify-between relative overflow-hidden group hover:scale-[1.02] transition-transform duration-200">
+        <div class="absolute -right-3 -top-3 w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-3xl group-hover:scale-110 transition-transform duration-300">
+          <i class="fa-solid fa-sack-dollar"></i>
+        </div>
+        <span class="text-xs font-semibold text-slate-500">มูลค่ายื่น vs อนุมัติรวม</span>
+        <div class="mt-3">
+          <p class="text-[10px] text-slate-500">ยื่น: <span id="kpi-value-claimed" class="font-semibold text-slate-800">฿0.00</span></p>
+          <h3 id="kpi-value-approved" class="text-xl font-bold text-emerald-700 leading-snug mt-1">฿0.00</h3>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-1">อนุมัติแล้ว</p>
+      </div>
+
+      <!-- Card 5: Transferred Success -->
+      <div class="bg-brand-navy p-5 rounded-2xl shadow-card border border-brand-darknavy flex flex-col justify-between relative overflow-hidden group hover:scale-[1.02] transition-transform duration-200 text-white">
+        <div class="absolute -right-3 -top-3 w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white text-3xl group-hover:scale-110 transition-transform duration-300">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <span class="text-xs font-medium text-brand-sky">โอนสำเร็จ A04</span>
+        <h3 id="kpi-transferred-val" class="text-xl font-bold text-white mt-4">฿0.00</h3>
+        <p id="kpi-transferred-count" class="text-[10px] text-brand-sky mt-2">0 เคสสำเร็จ</p>
+      </div>
+    </section>
+
+    <!-- Visual Analytics & Charts Section -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Chart 1: Grouped/Stacked Bar Chart -->
+      <div class="lg:col-span-5 bg-white p-5 rounded-2xl shadow-card flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-sm font-bold text-brand-navy flex items-center gap-2">
+            <i class="fa-solid fa-chart-column"></i>
+            <span>ประเภทสินค้า แยกตามหน่วยงานที่เกิดเหตุ</span>
+          </h2>
+          <span class="text-[10px] text-slate-400">กลุ่มหลักตามสถิติความเสียหาย</span>
+        </div>
+        <div class="flex-1 relative min-h-[300px]">
+          <canvas id="product-dc-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Donut Chart -->
+      <div class="lg:col-span-3 bg-white p-5 rounded-2xl shadow-card flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-sm font-bold text-brand-navy flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>สัดส่วนสถานะการเคลม (A Status)</span>
+          </h2>
+          <span class="text-[10px] text-slate-400">A00 - A89</span>
+        </div>
+        <div class="flex-1 relative min-h-[300px] flex items-center justify-center">
+          <canvas id="status-donut-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 3: Financial Liability Stacked Bar -->
+      <div class="lg:col-span-4 bg-white p-5 rounded-2xl shadow-card flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-sm font-bold text-brand-navy flex items-center gap-2">
+            <i class="fa-solid fa-hand-holding-dollar"></i>
+            <span>ภาระรับผิดชอบค่าเสียหาย (บาท)</span>
+          </h2>
+          <span class="text-[10px] text-slate-400">แยกตามฝ่ายรับผิดชอบ</span>
+        </div>
+        <div class="flex-1 relative min-h-[300px]">
+          <canvas id="liability-bar-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Advanced Filter Bar -->
+    <section class="bg-white p-5 rounded-2xl shadow-card flex flex-col gap-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h2 class="text-sm font-bold text-brand-navy flex items-center gap-2">
+          <i class="fa-solid fa-sliders"></i>
+          <span>ตัวกรองข้อมูลขั้นสูง (Advanced Filters)</span>
+        </h2>
+        <button onclick="resetFilters()" class="text-xs text-brand-navy hover:text-slate-700 flex items-center gap-1">
+          <i class="fa-solid fa-arrow-rotate-right"></i>
+          <span>รีเซ็ตตัวกรอง</span>
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Filter 1: Bill Type -->
+        <div>
+          <label class="text-[10px] font-semibold text-slate-500 block mb-1">ประเภทบิล:</label>
+          <select id="filter-bill-type" onchange="triggerDataFilter()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-brand-sky">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <!-- Filter 2: Customer Type -->
+        <div>
+          <label class="text-[10px] font-semibold text-slate-500 block mb-1">ประเภทลูกค้า:</label>
+          <select id="filter-cust-type" onchange="triggerDataFilter()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-brand-sky">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <!-- Filter 3: Damage Cause -->
+        <div>
+          <label class="text-[10px] font-semibold text-slate-500 block mb-1">สาเหตุความเสียหาย:</label>
+          <select id="filter-damage" onchange="triggerDataFilter()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-brand-sky">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <!-- Filter 4: Service Center / DC -->
+        <div>
+          <label class="text-[10px] font-semibold text-slate-500 block mb-1">ศูนย์บริการ/DC ที่เกิดเหตุ:</label>
+          <select id="filter-dc" onchange="triggerDataFilter()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-brand-sky">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <!-- Filter 5: A/B Status -->
+        <div>
+          <label class="text-[10px] font-semibold text-slate-500 block mb-1">สถานะเคลม A/B:</label>
+          <select id="filter-ab-status" onchange="triggerDataFilter()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-brand-sky">
+            <option value="">ทั้งหมด</option>
+            <option value="A00">A00 อยู่ระหว่างพิจารณา</option>
+            <option value="A01">A01 ส่งเอกสารประกอบ</option>
+            <option value="A02">A02 ตรวจสอบเอกสาร</option>
+            <option value="A03">A03 อยู่ระหว่างโอนเงิน</option>
+            <option value="A04">A04 โอนเงินสำเร็จ</option>
+            <option value="A89">A89 ปิดจบไม่เคลม</option>
+            <option value="B00">B00 ระหว่างประเมินผู้รับผิดชอบ</option>
+            <option value="B01">B01 ระหว่างตอบกลับของ DC</option>
+            <option value="B02">B02 ระหว่างอนุมัติของผู้บริหาร</option>
+            <option value="B03">B03 ค้างส่งเอกสารหักเงิน</option>
+            <option value="B04">B04 เคลียร์รับเอกสาร</option>
+            <option value="B05">B05 บัญชีรับเอกสาร</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Data Grid Table Section -->
+    <section class="bg-white rounded-2xl shadow-card overflow-hidden flex flex-col">
+      <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+        <div>
+          <h2 class="text-sm font-bold text-brand-navy flex items-center gap-2">
+            <i class="fa-solid fa-list-check"></i>
+            <span>ตารางรายการเคลมสินค้าละเอียด</span>
+          </h2>
+          <p class="text-[10px] text-slate-500 mt-0.5">แสดงข้อมูลรายการเรียงตามลำดับล่าสุด</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-500">แสดงผล:</span>
+          <select id="page-size" onchange="setPageSize()" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-sky">
+            <option value="10">10 รายการ</option>
+            <option value="20" selected>20 รายการ</option>
+            <option value="50">50 รายการ</option>
+            <option value="100">100 รายการ</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Data Table Wrap -->
+      <div class="table-container max-h-[500px] overflow-y-auto">
+        <table class="w-full border-collapse text-left text-xs">
+          <thead class="sticky-header">
+            <tr>
+              <th class="px-3 py-3 font-semibold text-white text-center frozen-header-1 w-12">#</th>
+              <th class="px-4 py-3 font-semibold text-white frozen-header-2 min-w-[130px] cursor-pointer" onclick="toggleSort('เลขที่บิล')">
+                เลขที่บิล <i class="fa-solid fa-sort ml-1 opacity-70"></i>
+              </th>
+              <th class="px-4 py-3 font-semibold text-white cursor-pointer min-w-[100px]" onclick="toggleSort('วันที่เอกสาร')">
+                วันที่เอกสาร <i class="fa-solid fa-sort ml-1 opacity-70"></i>
+              </th>
+              <th class="px-4 py-3 font-semibold text-white cursor-pointer min-w-[100px]" onclick="toggleSort('ประเภทบิล')">
+                ประเภทบิล <i class="fa-solid fa-sort ml-1 opacity-70"></i>
+              </th>
+              <th class="px-4 py-3 font-semibold text-white cursor-pointer min-w-[100px]" onclick="toggleSort('ประเภทลูกค้า')">
+                ประเภทลูกค้า <i class="fa-solid fa-sort ml-1 opacity-70"></i>
+              </th>
+              <th class="px-4 py-3 font-semibold text-white min-w-[280px]">
+                บริษัท ผู้ส่ง ➔ บริษัท ผู้รับ
+              </th>
+              <th class="px-4 py-3 font-semibold text-white text-right cursor-pointer min-w-[120px]" onclick="toggleSort('มูลค่ายื่นเคลม')">
+                มูลค่ายื่นเคลม (บาท) <i class="fa-solid fa-sort ml-1 opacity-70"></i>
+              </th>
+              <th class="px-4 py-3 font-semibold text-white text-right cursor-pointer min-w-[130px]" onclick="toggleSort('ยืนยันมูลค่าเคลม (บาท)')">
+                ยืนยันมูลค่าเคลม (บาท) <i class="fa-solid fa-sort ml-1 opacity-70"></i>
+              </th>
+              <th class="px-4 py-3 font-semibold text-white cursor-pointer min-w-[120px]" onclick="toggleSort('สถานะเคลม')">
+                สถานะเคลม (A Status) <i class="fa-solid fa-sort ml-1 opacity-70"></i>
+              </th>
+              <th class="px-4 py-3 font-semibold text-white text-center min-w-[80px]">จัดการ</th>
+            </tr>
+            <!-- Table Row Filter Inputs -->
+            <tr class="bg-slate-800/20">
+              <td class="px-2 py-1.5 frozen-col-1 bg-slate-100"></td>
+              <td class="px-2 py-1.5 frozen-col-2 bg-slate-100">
+                <input type="text" id="col-filter-bill" oninput="triggerDataFilter()" placeholder="กรองบิล" class="w-full border border-slate-200 rounded px-1.5 py-1 text-[10px] focus:outline-none">
+              </td>
+              <td class="px-2 py-1.5 bg-slate-50">
+                <input type="text" id="col-filter-date" oninput="triggerDataFilter()" placeholder="กรองวันที่" class="w-full border border-slate-200 rounded px-1.5 py-1 text-[10px] focus:outline-none">
+              </td>
+              <td class="px-2 py-1.5 bg-slate-50">
+                <input type="text" id="col-filter-type" oninput="triggerDataFilter()" placeholder="กรองประเภท" class="w-full border border-slate-200 rounded px-1.5 py-1 text-[10px] focus:outline-none">
+              </td>
+              <td class="px-2 py-1.5 bg-slate-50">
+                <input type="text" id="col-filter-cust" oninput="triggerDataFilter()" placeholder="กรองลูกค้า" class="w-full border border-slate-200 rounded px-1.5 py-1 text-[10px] focus:outline-none">
+              </td>
+              <td class="px-2 py-1.5 bg-slate-50">
+                <input type="text" id="col-filter-routing" oninput="triggerDataFilter()" placeholder="กรองผู้ส่ง-ผู้รับ" class="w-full border border-slate-200 rounded px-1.5 py-1 text-[10px] focus:outline-none">
+              </td>
+              <td class="px-2 py-1.5 bg-slate-50"></td>
+              <td class="px-2 py-1.5 bg-slate-50"></td>
+              <td class="px-2 py-1.5 bg-slate-50">
+                <input type="text" id="col-filter-status" oninput="triggerDataFilter()" placeholder="กรองสถานะ" class="w-full border border-slate-200 rounded px-1.5 py-1 text-[10px] focus:outline-none">
+              </td>
+              <td class="px-2 py-1.5 bg-slate-50"></td>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-slate-100">
+            <!-- Dynamic rows will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="px-5 py-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-50/50">
+        <span class="text-xs text-slate-500" id="table-entries-info">
+          แสดงข้อมูลรายการ 1 ถึง 0 จากทั้งหมด 0 รายการ
+        </span>
+        <div class="flex items-center gap-1" id="table-pagination-btns">
+          <!-- Page buttons inserted dynamically -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-brand-navy text-slate-300 py-4 text-center text-xs mt-auto border-t border-brand-darknavy">
+    <p>Clear Claim NEX Dashboard © 2026. All rights reserved.</p>
+  </footer>
+
+  <!-- Detail View Modal (👁️ ดู) -->
+  <div id="detail-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+    <!-- Overlay backdrop -->
+    <div onclick="closeDetailModal()" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+    
+    <!-- Modal content container -->
+    <div class="bg-white rounded-3xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl relative overflow-hidden mx-4 modal-open z-10">
+      
+      <!-- Modal Header -->
+      <div class="bg-brand-navy text-white px-6 py-4 flex justify-between items-center border-b border-brand-darknavy">
+        <div class="flex items-center gap-3">
+          <div class="bg-brand-sky p-2 rounded-xl text-brand-darknavy">
+            <i class="fa-solid fa-file-lines text-lg"></i>
+          </div>
+          <div>
+            <h2 class="font-bold text-lg leading-tight">ข้อมูลเคลมเคลียร์แบบละเอียด (69 คอลัมน์)</h2>
+            <p class="text-xs text-brand-sky mt-0.5 leading-none">เลขที่บิล: <span id="modal-bill-no" class="font-semibold underline"></span></p>
+          </div>
+        </div>
+        <button onclick="closeDetailModal()" class="text-white/80 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors">
+          <i class="fa-solid fa-circle-xmark text-2xl"></i>
+        </button>
+      </div>
+
+      <!-- Tab Buttons Switcher -->
+      <div class="flex flex-wrap bg-slate-50 border-b border-slate-200 px-4 pt-2 gap-1 overflow-x-auto select-none">
+        <button onclick="switchTab(0)" class="tab-btn px-4 py-3 text-xs font-semibold rounded-t-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-800" data-index="0">
+          1) ข้อมูลเอกสาร & บิล
+        </button>
+        <button onclick="switchTab(1)" class="tab-btn px-4 py-3 text-xs font-semibold rounded-t-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-800" data-index="1">
+          2) ข้อมูลผู้ส่ง-ผู้รับ & สินค้า
+        </button>
+        <button onclick="switchTab(2)" class="tab-btn px-4 py-3 text-xs font-semibold rounded-t-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-800" data-index="2">
+          3) มูลค่าทางการเงิน & การยื่นเคลม
+        </button>
+        <button onclick="switchTab(3)" class="tab-btn px-4 py-3 text-xs font-semibold rounded-t-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-800" data-index="3">
+          4) สาเหตุความเสียหาย & จุดเกิดเหตุ
+        </button>
+        <button onclick="switchTab(4)" class="tab-btn px-4 py-3 text-xs font-semibold rounded-t-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-800" data-index="4">
+          5) การประเมินผู้รับผิดชอบ
+        </button>
+        <button onclick="switchTab(5)" class="tab-btn px-4 py-3 text-xs font-semibold rounded-t-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-800" data-index="5">
+          6) สถานะกระบวนการเคลม (A/B)
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+        
+        <!-- Tab 0: Document & Bill -->
+        <div id="tab-pane-0" class="tab-pane hidden fade-in space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Box Content -->
+          </div>
+        </div>
+
+        <!-- Tab 1: Sender/Receiver & Product -->
+        <div id="tab-pane-1" class="tab-pane hidden fade-in space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Box Content -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Financials & Claim -->
+        <div id="tab-pane-2" class="tab-pane hidden fade-in space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Box Content -->
+          </div>
+        </div>
+
+        <!-- Tab 3: Damage & Incidents -->
+        <div id="tab-pane-3" class="tab-pane hidden fade-in space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Box Content -->
+          </div>
+        </div>
+
+        <!-- Tab 4: Liability Assessment -->
+        <div id="tab-pane-4" class="tab-pane hidden fade-in space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Box Content -->
+          </div>
+        </div>
+
+        <!-- Tab 5: Process Status (A/B) -->
+        <div id="tab-pane-5" class="tab-pane hidden fade-in space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Box Content -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-slate-100 px-6 py-4 flex justify-end gap-3 border-t border-slate-200">
+        <button onclick="closeDetailModal()" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold px-5 py-2 rounded-xl text-xs transition-colors">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center">
+    <div class="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 text-center">
+      <i class="fa-solid fa-spinner text-4xl text-brand-navy animate-spin"></i>
+      <div>
+        <h3 class="font-bold text-sm text-brand-navy">กำลังประมวลผลข้อมูลรายงาน</h3>
+        <p class="text-xs text-slate-500 mt-1">กรุณารอสักครู่ ระบบกำลังคัดแยกรายการซ้ำ...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include mock data first, then app script -->
+  <script src="mock_data.js"></script>
+  
+  <script>
+    // Application State Management
+    let allClaims = [];           // Contains all claims loaded in system
+    let filteredClaims = [];      // Contains currently filtered claims
+    let pageIndex = 1;            // Current pagination page
+    let pageSize = 20;            // Rows per page
+    let sortColumn = 'วันที่เอกสาร'; // Sort column
+    let sortDirection = 'desc';   // Sort direction
+    let timeFrequency = 'Daily';  // Daily, Weekly, Month, Year
+    let appNotifications = [];    // Import activity notifications
+
+    // Chart References
+    let productChartRef = null;
+    let statusChartRef = null;
+    let liabilityChartRef = null;
+
+    // Run on document load
+    window.onload = function() {
+      // Load initial mock data
+      if (typeof INITIAL_MOCK_DATA !== 'undefined' && Array.isArray(INITIAL_MOCK_DATA)) {
+        initializeData(INITIAL_MOCK_DATA, "โหลดฐานข้อมูลจำลอง (100 รายการสำเร็จ)");
+      }
+    };
+
+    function triggerFileInput() {
+      document.getElementById('excel-file-input').click();
+    }
+
+    // Modal Notification panels toggle
+    function toggleNotificationPanel() {
+      const drop = document.getElementById('notif-dropdown');
+      drop.classList.toggle('hidden');
+    }
+    
+    // Hide panel if clicking outside
+    document.addEventListener('click', function(e) {
+      const drop = document.getElementById('notif-dropdown');
+      const badge = document.querySelector('.relative.cursor-pointer');
+      if (drop && badge && !badge.contains(e.target) && !drop.contains(e.target)) {
+        drop.classList.add('hidden');
+      }
+    });
+
+    function addNotification(fileName, totalUploaded, newAdded, updatedCount) {
+      const timeStr = new Date().toLocaleTimeString('th-TH');
+      const notif = {
+        id: Date.now(),
+        time: timeStr,
+        fileName,
+        totalUploaded,
+        newAdded,
+        updatedCount
+      };
+      appNotifications.unshift(notif);
+      updateNotificationsUI();
+    }
+
+    function clearNotifications() {
+      appNotifications = [];
+      updateNotificationsUI();
+    }
+
+    function updateNotificationsUI() {
+      const notifList = document.getElementById('notif-list');
+      const notifCount = document.getElementById('notif-count');
+      
+      notifCount.innerText = appNotifications.length;
+      
+      if (appNotifications.length === 0) {
+        notifList.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">ไม่มีประวัติการนำเข้าไฟล์ข้อมูล</div>';
+        return;
+      }
+      
+      notifList.innerHTML = appNotifications.map(n => `
+        <div class="p-3.5 hover:bg-slate-50 transition-colors">
+          <p class="text-xs font-semibold text-brand-navy flex justify-between items-center">
+            <span class="truncate max-w-[160px]"><i class="fa-solid fa-file-excel text-emerald-600 mr-1.5"></i>${n.fileName}</span>
+            <span class="text-[10px] text-slate-400 font-light">${n.time} น.</span>
+          </p>
+          <div class="grid grid-cols-3 text-[10px] text-slate-500 mt-2 bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+            <div>ยื่นทั้งหมด: <strong class="text-brand-navy">${n.totalUploaded}</strong></div>
+            <div>ใหม่: <strong class="text-emerald-600">${n.newAdded}</strong></div>
+            <div>ทับซ้ำ: <strong class="text-brand-pink">${n.updatedCount}</strong></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Close deduplication banner
+    function closeDedupBanner() {
+      document.getElementById('dedup-banner').classList.add('hidden');
+    }
+
+    // Setup default options in filters based on dataset
+    function rebuildFilterDropdowns() {
+      const billTypes = new Set();
+      const custTypes = new Set();
+      const damageTypes = new Set();
+      const dcs = new Set();
+
+      allClaims.forEach(item => {
+        if (item["ประเภทบิล"]) billTypes.add(item["ประเภทบิล"]);
+        if (item["ประเภทลูกค้า"]) custTypes.add(item["ประเภทลูกค้า"]);
+        if (item["ประเภทความเสียหาย"]) damageTypes.add(item["ประเภทความเสียหาย"]);
+        if (item["หน่วยงานที่ทำให้เกิดเหตุ"]) dcs.add(item["หน่วยงานที่ทำให้เกิดเหตุ"]);
+      });
+
+      populateDropdown('filter-bill-type', Array.from(billTypes).sort());
+      populateDropdown('filter-cust-type', Array.from(custTypes).sort());
+      populateDropdown('filter-damage', Array.from(damageTypes).sort());
+      populateDropdown('filter-dc', Array.from(dcs).sort());
+    }
+
+    function populateDropdown(id, items) {
+      const select = document.getElementById(id);
+      const val = select.value; // retain previous value
+      select.innerHTML = '<option value="">ทั้งหมด</option>' + items.map(item => `
+        <option value="${item}">${item}</option>
+      `).join('');
+      select.value = val;
+    }
+
+    // Parsing Buddhist Era (BE) Date String "DD/MM/YYYY" to JS Date Object (CE)
+    function parseThaiDate(dateStr) {
+      if (!dateStr) return null;
+      // Strip out metadata if format contains author details e.g. "07/05/2569  sirinapa.s"
+      const cleanStr = dateStr.trim();
+      const match = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (!match) return null;
+      
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10) - 1; // 0-indexed
+      let year = parseInt(match[3], 10);
+      
+      // If year is Buddhist Era, subtract 543
+      if (year > 2400) {
+        year -= 543;
+      }
+      return new Date(year, month, day);
+    }
+
+    // Format Date back to display format
+    function formatThaiDate(date) {
+      if (!date) return '';
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear() + 543; // convert back to BE
+      return `${day}/${month}/${year}`;
+    }
+
+    // Data Processing & Deduplication Engine
+    function initializeData(dataArray, activityMessage = "") {
+      document.getElementById('loading-overlay').classList.remove('hidden');
+
+      setTimeout(() => {
+        const result = runDeduplication(dataArray);
+        
+        allClaims = result.list;
+        filteredClaims = [...allClaims];
+        
+        // Rebuild dropdown menus
+        rebuildFilterDropdowns();
+
+        // Calculate and render dashboard stats
+        triggerDataFilter();
+
+        // Setup notification details
+        if (activityMessage) {
+          const banner = document.getElementById('dedup-banner');
+          const bannerText = document.getElementById('dedup-banner-text');
+          bannerText.innerHTML = `${activityMessage} - ประมวลผลบิลเคลม <strong>${result.totalUploaded} รายการ</strong>, คัดกรองเหลือรายการอัปเดตใหม่ <strong>${result.newAdded} รายการ</strong> (ตัดรายการซ้ำออก <strong>${result.updatedCount} รายการ</strong>)`;
+          banner.classList.remove('hidden');
+          
+          addNotification(
+            activityMessage.includes("อัปโหลด") ? "อัปโหลดไฟล์เสร็จสิ้น" : "ฐานข้อมูลจำลอง",
+            result.totalUploaded,
+            result.newAdded,
+            result.updatedCount
+          );
+        }
+
+        document.getElementById('loading-overlay').classList.add('hidden');
+      }, 50);
+    }
+
+    function runDeduplication(rawRows) {
+      const groups = {};
+      let totalUploaded = 0;
+      let updatedCount = 0;
+      let newAdded = 0;
+
+      rawRows.forEach(row => {
+        // Find bill number
+        const billNo = row["เลขที่บิล"] ? row["เลขที่บิล"].toString().trim() : "";
+        if (!billNo) return; // Skip records with no bill number
+
+        totalUploaded++;
+        const docDate = parseThaiDate(row["วันที่เอกสาร"]);
+
+        if (!groups[billNo]) {
+          groups[billNo] = { row, docDate };
+        } else {
+          // Compare dates and retain newer one
+          const existingDate = groups[billNo].docDate;
+          if (docDate && (!existingDate || docDate > existingDate)) {
+            groups[billNo] = { row, docDate };
+          }
+          updatedCount++;
+        }
+      });
+
+      const deduplicatedList = Object.values(groups).map(g => g.row);
+      newAdded = deduplicatedList.length;
+
+      return {
+        list: deduplicatedList,
+        totalUploaded,
+        newAdded,
+        updatedCount
+      };
+    }
+
+    // Trigger filters update when query or dropdown inputs change
+    function triggerDataFilter() {
+      const searchQuery = document.getElementById('global-search').value.toLowerCase().trim();
+      const filterBillType = document.getElementById('filter-bill-type').value;
+      const filterCustType = document.getElementById('filter-cust-type').value;
+      const filterDamage = document.getElementById('filter-damage').value;
+      const filterDC = document.getElementById('filter-dc').value;
+      const filterABStatus = document.getElementById('filter-ab-status').value;
+
+      // Header quick filters inputs
+      const quickBill = document.getElementById('col-filter-bill').value.toLowerCase().trim();
+      const quickDate = document.getElementById('col-filter-date').value.toLowerCase().trim();
+      const quickType = document.getElementById('col-filter-type').value.toLowerCase().trim();
+      const quickCust = document.getElementById('col-filter-cust').value.toLowerCase().trim();
+      const quickRouting = document.getElementById('col-filter-routing').value.toLowerCase().trim();
+      const quickStatus = document.getElementById('col-filter-status').value.toLowerCase().trim();
+
+      filteredClaims = allClaims.filter(item => {
+        // Global search
+        if (searchQuery) {
+          const matchSearch = 
+            (item["เลขที่บิล"] && item["เลขที่บิล"].toString().toLowerCase().includes(searchQuery)) ||
+            (item["บริษัท ผู้ส่ง"] && item["บริษัท ผู้ส่ง"].toString().toLowerCase().includes(searchQuery)) ||
+            (item["บริษัท ผู้รับ"] && item["บริษัท ผู้รับ"].toString().toLowerCase().includes(searchQuery)) ||
+            (item["ทะเบียนรถ"] && item["ทะเบียนรถ"].toString().toLowerCase().includes(searchQuery)) ||
+            (item["เลขที่รับบิลเข้าระบบเคลียร์เคลมสินค้า"] && item["เลขที่รับบิลเข้าระบบเคลียร์เคลมสินค้า"].toString().toLowerCase().includes(searchQuery));
+          if (!matchSearch) return false;
+        }
+
+        // Advanced Dropdowns
+        if (filterBillType && item["ประเภทบิล"] !== filterBillType) return false;
+        if (filterCustType && item["ประเภทลูกค้า"] !== filterCustType) return false;
+        if (filterDamage && item["ประเภทความเสียหาย"] !== filterDamage) return false;
+        if (filterDC && item["หน่วยงานที่ทำให้เกิดเหตุ"] !== filterDC) return false;
+        
+        // A/B status filters (matches prefix code in claim/clearance statuses)
+        if (filterABStatus) {
+          const isA = filterABStatus.startsWith('A');
+          const isB = filterABStatus.startsWith('B');
+          
+          if (isA) {
+            const statusVal = item["สถานะเคลม"] || "";
+            if (!statusVal.startsWith(filterABStatus)) return false;
+          } else if (isB) {
+            const statusVal = item["สถานะเคลียร์"] || "";
+            if (!statusVal.startsWith(filterABStatus)) return false;
+          }
+        }
+
+        // Column quick filters
+        if (quickBill && !(item["เลขที่บิล"] && item["เลขที่บิล"].toString().toLowerCase().includes(quickBill))) return false;
+        if (quickDate && !(item["วันที่เอกสาร"] && item["วันที่เอกสาร"].toString().toLowerCase().includes(quickDate))) return false;
+        if (quickType && !(item["ประเภทบิล"] && item["ประเภทบิล"].toString().toLowerCase().includes(quickType))) return false;
+        if (quickCust && !(item["ประเภทลูกค้า"] && item["ประเภทลูกค้า"].toString().toLowerCase().includes(quickCust))) return false;
+        
+        if (quickRouting) {
+          const sendRecv = `${item["บริษัท ผู้ส่ง"] || ""} ➔ ${item["บริษัท ผู้รับ"] || ""}`.toLowerCase();
+          if (!sendRecv.includes(quickRouting)) return false;
+        }
+
+        if (quickStatus && !(item["สถานะเคลม"] && item["สถานะเคลม"].toString().toLowerCase().includes(quickStatus))) return false;
+
+        return true;
+      });
+
+      // Apply sorting
+      sortDataset();
+
+      // Reset page
+      pageIndex = 1;
+      
+      // Update displays
+      updateDashboardKPIs();
+      renderTable();
+      renderCharts();
+    }
+
+    function resetFilters() {
+      document.getElementById('global-search').value = "";
+      document.getElementById('filter-bill-type').value = "";
+      document.getElementById('filter-cust-type').value = "";
+      document.getElementById('filter-damage').value = "";
+      document.getElementById('filter-dc').value = "";
+      document.getElementById('filter-ab-status').value = "";
+
+      document.getElementById('col-filter-bill').value = "";
+      document.getElementById('col-filter-date').value = "";
+      document.getElementById('col-filter-type').value = "";
+      document.getElementById('col-filter-cust').value = "";
+      document.getElementById('col-filter-routing').value = "";
+      document.getElementById('col-filter-status').value = "";
+
+      triggerDataFilter();
+    }
+
+    // Set Time Toggle frequency selector
+    function setTimeFrequency(freq) {
+      timeFrequency = freq;
+      
+      // Update UI active buttons styling
+      document.querySelectorAll('.tf-btn').forEach(btn => {
+        btn.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 tf-btn text-slate-500 hover:text-slate-800";
+      });
+      const activeBtn = document.getElementById(`tf-${freq}`);
+      activeBtn.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 tf-btn bg-white text-brand-navy shadow-sm";
+
+      // Recalculate and update charts
+      renderCharts();
+    }
+
+    // Sorting functionality
+    function toggleSort(col) {
+      if (sortColumn === col) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortColumn = col;
+        sortDirection = 'desc';
+      }
+      triggerDataFilter();
+    }
+
+    function sortDataset() {
+      filteredClaims.sort((a, b) => {
+        let valA = a[sortColumn];
+        let valB = b[sortColumn];
+
+        if (sortColumn === 'วันที่เอกสาร' || sortColumn === 'วันที่บิล') {
+          const dateA = parseThaiDate(valA) || new Date(0);
+          const dateB = parseThaiDate(valB) || new Date(0);
+          return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+        }
+
+        if (sortColumn === 'มูลค่ายื่นเคลม' || sortColumn === 'ยืนยันมูลค่าเคลม (บาท)') {
+          const numA = parseFloat(valA) || 0;
+          const numB = parseFloat(valB) || 0;
+          return sortDirection === 'asc' ? numA - numB : numB - numA;
+        }
+
+        // String comparison
+        valA = valA ? valA.toString().toLowerCase() : '';
+        valB = valB ? valB.toString().toLowerCase() : '';
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    // Recalculate KPIs Cards Metrics
+    function updateDashboardKPIs() {
+      // Total Claims
+      document.getElementById('kpi-total-claims').innerText = filteredClaims.length;
+
+      // Find top/mode of Bill Type and Customer Type
+      const billCounts = {};
+      const custCounts = {};
+      let totalClaimValue = 0;
+      let totalApprovedValue = 0;
+      let transferSuccessValue = 0;
+      let transferSuccessCount = 0;
+
+      filteredClaims.forEach(item => {
+        const bType = item["ประเภทบิล"] || "ไม่ระบุ";
+        const cType = item["ประเภทลูกค้า"] || "ไม่ระบุ";
+        
+        billCounts[bType] = (billCounts[bType] || 0) + 1;
+        custCounts[cType] = (custCounts[cType] || 0) + 1;
+
+        totalClaimValue += parseFloat(item["มูลค่ายื่นเคลม"]) || 0;
+        totalApprovedValue += parseFloat(item["ยืนยันมูลค่าเคลม (บาท)"]) || 0;
+
+        // Check if Status is A04 (Transfer Success)
+        const claimStatus = item["สถานะเคลม"] || "";
+        if (claimStatus.startsWith("A04")) {
+          transferSuccessCount++;
+          transferSuccessValue += parseFloat(item["ยืนยันมูลค่าเคลม (บาท)"]) || 0;
+        }
+      });
+
+      // Find top bill type
+      let topBill = "ไม่มีข้อมูล";
+      let topBillCount = 0;
+      for (const [k, v] of Object.entries(billCounts)) {
+        if (v > topBillCount) {
+          topBill = k;
+          topBillCount = v;
+        }
+      }
+      document.getElementById('kpi-top-bill-type').innerText = topBill;
+      document.getElementById('kpi-top-bill-count').innerText = `${topBillCount} เคส`;
+
+      // Find top customer type
+      let topCust = "ไม่มีข้อมูล";
+      let topCustCount = 0;
+      for (const [k, v] of Object.entries(custCounts)) {
+        if (v > topCustCount) {
+          topCust = k;
+          topCustCount = v;
+        }
+      }
+      document.getElementById('kpi-top-cust-type').innerText = topCust;
+      document.getElementById('kpi-top-cust-count').innerText = `${topCustCount} เคส`;
+
+      // Financial values formatting
+      document.getElementById('kpi-value-claimed').innerText = formatCurrency(totalClaimValue);
+      document.getElementById('kpi-value-approved').innerText = formatCurrency(totalApprovedValue);
+      document.getElementById('kpi-transferred-val').innerText = formatCurrency(transferSuccessValue);
+      document.getElementById('kpi-transferred-count').innerText = `${transferSuccessCount} เคสสำเร็จ`;
+    }
+
+    function formatCurrency(val) {
+      return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(val);
+    }
+
+    // Grid Table Pagination & Render
+    function setPageSize() {
+      pageSize = parseInt(document.getElementById('page-size').value, 10);
+      pageIndex = 1;
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      if (filteredClaims.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" class="text-center py-8 text-slate-400 font-medium bg-slate-50">
+              <i class="fa-solid fa-triangle-exclamation text-2xl mb-2 text-slate-300 block"></i>
+              ไม่พบรายการข้อมูลที่ค้นหาหรือเข้าตัวกรอง
+            </td>
+          </tr>
+        `;
+        document.getElementById('table-entries-info').innerText = "แสดงข้อมูลรายการ 0 ถึง 0 จากทั้งหมด 0 รายการ";
+        document.getElementById('table-pagination-btns').innerHTML = '';
+        return;
+      }
+
+      const startIndex = (pageIndex - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, filteredClaims.length);
+      const pageData = filteredClaims.slice(startIndex, endIndex);
+
+      pageData.forEach((item, i) => {
+        const num = startIndex + i + 1;
+        const billNo = item["เลขที่บิล"] || "-";
+        const docDate = item["วันที่เอกสาร"] || "-";
+        const bType = item["ประเภทบิล"] || "-";
+        const cType = item["ประเภทลูกค้า"] || "-";
+        const routing = `${item["บริษัท ผู้ส่ง"] || "-"} ➔ ${item["บริษัท ผู้รับ"] || "-"}`;
+        const valClaimed = parseFloat(item["มูลค่ายื่นเคลม"]) || 0;
+        const valApproved = parseFloat(item["ยืนยันมูลค่าเคลม (บาท)"]) || 0;
+        
+        // Format Status with badges
+        const aStatus = item["สถานะเคลม"] || "-";
+        let statusBadge = `<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium text-[10px]">${aStatus}</span>`;
+        if (aStatus.startsWith('A04')) {
+          statusBadge = `<span class="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold text-[10px]"><i class="fa-solid fa-circle-check mr-1"></i>${aStatus}</span>`;
+        } else if (aStatus.startsWith('A89')) {
+          statusBadge = `<span class="bg-rose-50 text-rose-600 border border-rose-200 px-2 py-0.5 rounded-full font-medium text-[10px]"><i class="fa-solid fa-circle-xmark mr-1"></i>${aStatus}</span>`;
+        } else if (aStatus.startsWith('A00') || aStatus.startsWith('A01') || aStatus.startsWith('A02') || aStatus.startsWith('A03')) {
+          statusBadge = `<span class="bg-amber-50 text-amber-600 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[10px]"><i class="fa-solid fa-clock-rotate-left mr-1"></i>${aStatus}</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+          <td class="px-3 py-3 text-center text-slate-400 font-medium frozen-col-1">${num}</td>
+          <td class="px-4 py-3 font-semibold text-brand-navy frozen-col-2">${billNo}</td>
+          <td class="px-4 py-3 text-slate-500">${docDate}</td>
+          <td class="px-4 py-3"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-medium">${bType}</span></td>
+          <td class="px-4 py-3 text-slate-600">${cType}</td>
+          <td class="px-4 py-3 font-medium text-slate-700 truncate max-w-[280px]" title="${routing}">${routing}</td>
+          <td class="px-4 py-3 text-right font-medium text-slate-600">${formatCurrency(valClaimed)}</td>
+          <td class="px-4 py-3 text-right font-bold text-slate-800">${formatCurrency(valApproved)}</td>
+          <td class="px-4 py-3">${statusBadge}</td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="viewDetailModal('${billNo}')" class="bg-brand-sky/20 hover:bg-brand-sky text-brand-navy font-semibold px-2.5 py-1 rounded-lg text-[11px] transition-all duration-150 transform hover:scale-105 active:scale-95 flex items-center gap-1 mx-auto">
+              <i class="fa-solid fa-eye"></i> ดู
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Update footer info
+      document.getElementById('table-entries-info').innerText = `แสดงข้อมูลรายการ ${startIndex + 1} ถึง ${endIndex} จากทั้งหมด ${filteredClaims.length} รายการ`;
+
+      // Rebuild Pagination buttons
+      const totalPages = Math.ceil(filteredClaims.length / pageSize);
+      const pagesContainer = document.getElementById('table-pagination-btns');
+      pagesContainer.innerHTML = '';
+
+      // Prev Button
+      const prevBtn = document.createElement('button');
+      prevBtn.disabled = pageIndex === 1;
+      prevBtn.className = "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold border transition-all " + (pageIndex === 1 ? "text-slate-300 border-slate-100 cursor-not-allowed bg-slate-50" : "text-brand-navy border-slate-200 hover:bg-slate-50");
+      prevBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+      prevBtn.onclick = () => { pageIndex--; renderTable(); };
+      pagesContainer.appendChild(prevBtn);
+
+      // Page numbers (smart rendering - up to 5 buttons)
+      let startP = Math.max(1, pageIndex - 2);
+      let endP = Math.min(totalPages, startP + 4);
+      if (endP - startP < 4) {
+        startP = Math.max(1, endP - 4);
+      }
+
+      for (let p = startP; p <= endP; p++) {
+        const btn = document.createElement('button');
+        btn.className = "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all " + (pageIndex === p ? "bg-brand-navy text-white shadow-sm" : "text-slate-600 border border-slate-200 hover:bg-slate-50");
+        btn.innerText = p;
+        btn.onclick = () => { pageIndex = p; renderTable(); };
+        pagesContainer.appendChild(btn);
+      }
+
+      // Next Button
+      const nextBtn = document.createElement('button');
+      nextBtn.disabled = pageIndex === totalPages;
+      nextBtn.className = "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold border transition-all " + (pageIndex === totalPages ? "text-slate-300 border-slate-100 cursor-not-allowed bg-slate-50" : "text-brand-navy border-slate-200 hover:bg-slate-50");
+      nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+      nextBtn.onclick = () => { pageIndex++; renderTable(); };
+      pagesContainer.appendChild(nextBtn);
+    }
+
+    // Chart.js Visualization Logic
+    function renderCharts() {
+      // 1. Prepare Data for Grouped Stacked Bar Chart: "ประเภทสินค้า แยกตามหน่วยงานที่เกิดเหตุ"
+      const productGroups = {}; // { productGroup: { dcName: count } }
+      const allDcs = new Set();
+      const allProdGroups = new Set();
+
+      filteredClaims.forEach(item => {
+        let pg = item["ประเภทของสินค้า/กลุ่มสินค้า"] || "ไม่ระบุ";
+        // Clean up group name
+        pg = pg.replace(/^\d+\s+/, '').trim(); // Remove leading numbers
+        let dc = item["หน่วยงานที่ทำให้เกิดเหตุ"] || "ไม่ระบุ";
+        dc = dc.replace(/^\d+\s+/, '').trim(); // Remove leading numbers
+
+        if (pg && dc) {
+          allDcs.add(dc);
+          allProdGroups.add(pg);
+          if (!productGroups[pg]) productGroups[pg] = {};
+          productGroups[pg][dc] = (productGroups[pg][dc] || 0) + 1;
+        }
+      });
+
+      // Filter and limit to top 5 Product Groups and top 5 DCs to maintain readability
+      const topProdGroups = Array.from(allProdGroups).map(pg => {
+        let total = 0;
+        for (const count of Object.values(productGroups[pg])) {
+          total += count;
+        }
+        return { pg, total };
+      }).sort((a, b) => b.total - a.total).slice(0, 6).map(x => x.pg);
+
+      const topDcs = Array.from(allDcs).map(dc => {
+        let total = 0;
+        for (const pg of topProdGroups) {
+          total += productGroups[pg][dc] || 0;
+        }
+        return { dc, total };
+      }).sort((a, b) => b.total - a.total).slice(0, 5).map(x => x.dc);
+
+      // Formulate datasets
+      const colorsPalette = ['#1E3E62', '#A0C4FF', '#FFADAD', '#FFD6A5', '#BDB2FF', '#CAFFBF'];
+      const chart1Datasets = topDcs.map((dc, i) => {
+        return {
+          label: dc,
+          data: topProdGroups.map(pg => productGroups[pg][dc] || 0),
+          backgroundColor: colorsPalette[i % colorsPalette.length] + 'CC',
+          borderColor: colorsPalette[i % colorsPalette.length],
+          borderWidth: 1
+        };
+      });
+
+      // 2. Prepare Data for Donut Chart: "Claim Status Distribution (A Status)"
+      const statusCounts = {};
+      filteredClaims.forEach(item => {
+        const aStatus = item["สถานะเคลม"] || "ไม่ระบุ";
+        const shortStatus = aStatus.split(/\s+/)[0]; // Keep short code (A00, A01, etc.)
+        statusCounts[shortStatus] = (statusCounts[shortStatus] || 0) + 1;
+      });
+
+      const donutLabels = Object.keys(statusCounts).sort();
+      const donutData = donutLabels.map(l => statusCounts[l]);
+
+      // 3. Prepare Data for Stacked Bar Chart: "Financial Liability Breakdown (Baht)" grouped by Time Frequency
+      // X-Axis will group claims based on tf choice: Daily, Weekly, Monthly, Yearly
+      const liabilityData = {}; // { timeKey: { company, employee, contractor, droppoint } }
+
+      filteredClaims.forEach(item => {
+        const docDate = parseThaiDate(item["วันที่เอกสาร"]);
+        if (!docDate) return;
+
+        let timeKey = "";
+        if (timeFrequency === 'Daily') {
+          timeKey = formatThaiDate(docDate);
+        } else if (timeFrequency === 'Weekly') {
+          // Find week number
+          const year = docDate.getFullYear() + 543;
+          const firstJan = new Date(docDate.getFullYear(), 0, 1);
+          const numberOfDays = Math.floor((docDate - firstJan) / (24 * 60 * 60 * 1000));
+          const week = Math.ceil((numberOfDays + firstJan.getDay() + 1) / 7);
+          timeKey = `สัปดาห์ที่ ${week} / ${year}`;
+        } else if (timeFrequency === 'Month') {
+          const year = docDate.getFullYear() + 543;
+          const month = docDate.getMonth() + 1;
+          timeKey = `${month}/${year}`;
+        } else if (timeFrequency === 'Year') {
+          timeKey = (docDate.getFullYear() + 543).toString();
+        }
+
+        const comp = parseFloat(item["บริษัท(บาท)"]) || 0;
+        const emp = parseFloat(item["พนักงาน(บาท)"]) || 0;
+        const cont = parseFloat(item["ผู้ประกอบการรถร่วม (บาท)"]) || 0;
+        const dp = parseFloat(item["ผู้ประกอบการ Drop point (บาท)"]) || 0;
+
+        if (!liabilityData[timeKey]) {
+          liabilityData[timeKey] = { company: 0, employee: 0, contractor: 0, droppoint: 0 };
+        }
+        liabilityData[timeKey].company += comp;
+        liabilityData[timeKey].employee += emp;
+        liabilityData[timeKey].contractor += cont;
+        liabilityData[timeKey].droppoint += dp;
+      });
+
+      // Sort Time Keys chronologically
+      const sortedTimeKeys = Object.keys(liabilityData).sort((a, b) => {
+        if (timeFrequency === 'Daily' || timeFrequency === 'Month') {
+          // Parse back to dates for comparison
+          const parseKey = (k) => {
+            const parts = k.split('/');
+            if (parts.length === 3) return new Date(parseInt(parts[2])-543, parseInt(parts[1])-1, parseInt(parts[0]));
+            if (parts.length === 2) return new Date(parseInt(parts[1])-543, parseInt(parts[0])-1, 1);
+            return new Date(0);
+          };
+          return parseKey(a) - parseKey(b);
+        }
+        return a.localeCompare(b);
+      }).slice(-12); // Limit to last 12 points for clean layout
+
+      const finalLiabilityDatasets = [
+        {
+          label: 'บริษัท',
+          data: sortedTimeKeys.map(k => liabilityData[k].company),
+          backgroundColor: '#0B192C'
+        },
+        {
+          label: 'พนักงาน',
+          data: sortedTimeKeys.map(k => liabilityData[k].employee),
+          backgroundColor: '#FFADAD'
+        },
+        {
+          label: 'รถร่วม',
+          data: sortedTimeKeys.map(k => liabilityData[k].contractor),
+          backgroundColor: '#A0C4FF'
+        },
+        {
+          label: 'Drop point',
+          data: sortedTimeKeys.map(k => liabilityData[k].droppoint),
+          backgroundColor: '#FFD6A5'
+        }
+      ];
+
+      // --- Chart.js Rendering ---
+      
+      // Chart 1: Grouped/Stacked Bar Chart
+      if (productChartRef) productChartRef.destroy();
+      const ctx1 = document.getElementById('product-dc-chart').getContext('2d');
+      productChartRef = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: topProdGroups,
+          datasets: chart1Datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
+          },
+          scales: {
+            x: { stacked: false, grid: { display: false } },
+            y: { stacked: false }
+          }
+        }
+      });
+
+      // Chart 2: Donut Chart
+      if (statusChartRef) statusChartRef.destroy();
+      const ctx2 = document.getElementById('status-donut-chart').getContext('2d');
+      statusChartRef = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: donutLabels,
+          datasets: [{
+            data: donutData,
+            backgroundColor: ['#0B192C', '#1E3E62', '#A0C4FF', '#FFADAD', '#FFD6A5', '#BDB2FF', '#CAFFBF'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }
+          },
+          cutout: '65%'
+        }
+      });
+
+      // Chart 3: Liability Stacked Bar
+      if (liabilityChartRef) liabilityChartRef.destroy();
+      const ctx3 = document.getElementById('liability-bar-chart').getContext('2d');
+      liabilityChartRef = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+          labels: sortedTimeKeys,
+          datasets: finalLiabilityDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
+          },
+          scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true }
+          }
+        }
+      });
+    }
+
+    // Drag and Drop files handlers
+    function onDragOver(e) {
+      e.preventDefault();
+      document.getElementById('dropzone').classList.add('bg-brand-skylight/60', 'border-brand-navy');
+    }
+
+    function onDragLeave(e) {
+      e.preventDefault();
+      document.getElementById('dropzone').classList.remove('bg-brand-skylight/60', 'border-brand-navy');
+    }
+
+    function onDrop(e) {
+      e.preventDefault();
+      document.getElementById('dropzone').classList.remove('bg-brand-skylight/60', 'border-brand-navy');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        processUploadedFile(files[0]);
+      }
+    }
+
+    function handleFileSelect(e) {
+      const files = e.target.files;
+      if (files.length > 0) {
+        processUploadedFile(files[0]);
+      }
+    }
+
+    function processUploadedFile(file) {
+      const reader = new FileReader();
+      document.getElementById('loading-overlay').classList.remove('hidden');
+
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Parse with raw array of arrays header output to handle duplicate labels gracefully
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          if (rawRows.length < 5) {
+            alert("ไฟล์เอกสารสั้นเกินไป หรือโครงสร้างตารางไม่ถูกต้อง");
+            document.getElementById('loading-overlay').classList.add('hidden');
+            return;
+          }
+
+          // Headers reside on Row 5 (index 4 in 0-indexed system)
+          const rawHeaders = rawRows[4];
+          if (!rawHeaders || rawHeaders.length === 0) {
+            alert("ไม่พบหัวคอลัมน์ของข้อมูลที่แถวที่ 5");
+            document.getElementById('loading-overlay').classList.add('hidden');
+            return;
+          }
+
+          // Clean headers list
+          const cleanHeaders = rawHeaders.map((h, colIdx) => {
+            if (!h) {
+              return colIdx === 0 ? "index" : `col_${colIdx + 1}`;
+            }
+            return h.toString().replace(/\r?\n/g, ' ').trim();
+          });
+
+          // Extract data rows starting from row 8 (index 7 in 0-indexed)
+          const listParsed = [];
+          for (let r = 7; r < rawRows.length; r++) {
+            const rowValues = rawRows[r];
+            if (!rowValues || rowValues.length === 0) continue;
+            
+            // Check if index column is empty
+            const indexCol = rowValues[0];
+            if (indexCol === undefined || indexCol === null || indexCol === '') continue;
+
+            const item = {};
+            cleanHeaders.forEach((header, colIdx) => {
+              let val = rowValues[colIdx];
+              let strVal = (val !== undefined && val !== null) ? val.toString().trim() : "";
+              
+              // Avoid duplicate keys
+              let key = header;
+              if (item[key] !== undefined) {
+                key = `${key} (2)`;
+              }
+              item[key] = strVal;
+            });
+            listParsed.push(item);
+          }
+
+          // Merge loaded data with existing system claims and re-run deduplication
+          const merged = [...allClaims, ...listParsed];
+          initializeData(merged, `อัปโหลดไฟล์ "${file.name}" สำเร็จ`);
+          
+        } catch (err) {
+          console.error(err);
+          alert("ไม่สามารถอ่านไฟล์ Excel ได้เนื่องจาก: " + err.message);
+          document.getElementById('loading-overlay').classList.add('hidden');
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Modal Details Window Logic
+    function viewDetailModal(billNo) {
+      const item = allClaims.find(x => x["เลขที่บิล"] === billNo);
+      if (!item) return;
+
+      document.getElementById('modal-bill-no').innerText = billNo;
+      
+      // Load tabs content
+      buildModalTabsContent(item);
+      
+      // Open modal
+      const modal = document.getElementById('detail-modal');
+      modal.classList.remove('hidden');
+      switchTab(0);
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
+    }
+
+    function switchTab(index) {
+      // Tab buttons state
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const btnIdx = parseInt(btn.getAttribute('data-index'), 10);
+        if (btnIdx === index) {
+          btn.className = "tab-btn px-4 py-3 text-xs font-bold rounded-t-xl transition-all border-b-2 border-brand-sky text-brand-navy bg-white shadow-sm";
+        } else {
+          btn.className = "tab-btn px-4 py-3 text-xs font-semibold rounded-t-xl transition-all border-b-2 border-transparent text-slate-500 hover:text-slate-800";
+        }
+      });
+
+      // Tab panes show/hide
+      document.querySelectorAll('.tab-pane').forEach((pane, idx) => {
+        if (idx === index) {
+          pane.classList.remove('hidden');
+        } else {
+          pane.classList.add('hidden');
+        }
+      });
+    }
+
+    function buildModalTabsContent(item) {
+      // Helper function to build group items
+      const makeField = (label, val, highlight = false) => `
+        <div class="border-b border-slate-100 pb-2">
+          <span class="text-[10px] text-slate-400 block">${label}</span>
+          <span class="text-xs font-semibold ${highlight ? 'text-brand-navy' : 'text-slate-700'}">${val || '-'}</span>
+        </div>
+      `;
+
+      const formatCurrencyLocal = (val) => {
+        if (!val || isNaN(val)) return '-';
+        return formatCurrency(parseFloat(val));
+      };
+
+      // 1) ข้อมูลเอกสาร & บิล
+      document.getElementById('tab-pane-0').innerHTML = `
+        <div class="bg-white p-5 rounded-2xl shadow-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${makeField('เลขที่รับบิลเข้าระบบเคลียร์เคลมสินค้า', item['เลขที่รับบิลเข้าระบบเคลียร์เคลมสินค้า'])}
+          ${makeField('วันที่เอกสาร', item['วันที่เอกสาร'])}
+          ${makeField('เลขที่ใบรายการ', item['เลขที่ใบรายการ'])}
+          ${makeField('เลขที่บิล', item['เลขที่บิล'], true)}
+          ${makeField('วันที่บิล', item['วันที่บิล'])}
+          ${makeField('ประเภทบิล', item['ประเภทบิล'])}
+          ${makeField('สถานะบิล', item['สถานะบิล'])}
+          ${makeField('เลขที่บิลส่งเอกสารหักเงิน', item['เลขที่บิลส่งเอกสารหักเงิน'])}
+          ${makeField('สถานะบิลปัจจุบัน', item['สถานะบิลปัจจุบัน'])}
+        </div>
+      `;
+
+      // 2) ข้อมูลผู้ส่ง-ผู้รับ & รายละเอียดสินค้า
+      document.getElementById('tab-pane-1').innerHTML = `
+        <div class="bg-white p-5 rounded-2xl shadow-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${makeField('ทะเบียนรถ', item['ทะเบียนรถ'])}
+          ${makeField('ประเภทลูกค้า', item['ประเภทลูกค้า'])}
+          ${makeField('บริษัท ผู้ส่ง', item['บริษัท ผู้ส่ง'])}
+          ${makeField('บริษัท ผู้รับ', item['บริษัท ผู้รับ'])}
+          ${makeField('ประเภทสินค้า', item['ประเภทสินค้า'])}
+          ${makeField('ประเภทของสินค้า/กลุ่มสินค้า', item['ประเภทของสินค้า/กลุ่มสินค้า'])}
+          ${makeField('จุดรับ', item['จุดรับ'])}
+          ${makeField('จุดขึ้น', item['จุดขึ้น'])}
+          ${makeField('จุดลง', item['จุดลง'])}
+          ${makeField('วันที่รับของ', item['วันที่รับของ'])}
+          ${makeField('จำนวนกล่องที่ได้รับความเสียหาย/สูญหาย', item['จำนวนกล่องที่ได้รับความเสียหาย/สูญหาย'])}
+          ${makeField('กล่องที่ได้รับความเสียหาย/สูญหาย', item['กล่องที่ได้รับความเสียหาย/สูญหาย'])}
+        </div>
+      `;
+
+      // 3) มูลค่าทางการเงิน & การยื่นเคลม
+      document.getElementById('tab-pane-2').innerHTML = `
+        <div class="bg-white p-5 rounded-2xl shadow-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${makeField('ค่าขนส่ง', formatCurrencyLocal(item['ค่าขนส่ง']))}
+          ${makeField('มูลค่ายื่นเคลม', formatCurrencyLocal(item['มูลค่ายื่นเคลม']))}
+          ${makeField('ราคากลาง', formatCurrencyLocal(item['ราคากลาง']))}
+          ${makeField('ยืนยันมูลค่าเคลม (บาท)', formatCurrencyLocal(item['ยืนยันมูลค่าเคลม (บาท)']), true)}
+          ${makeField('ยืนยันมูลค่าเคลม (บาท) (2)', formatCurrencyLocal(item['ยืนยันมูลค่าเคลม (บาท) (2)']))}
+          ${makeField('เลขที่เอกสาร E-APP', item['เลขที่เอกสาร E-APP'])}
+          ${makeField('วันที่เอกสาร E-APP', item['วันที่เอกสาร E-APP'])}
+          ${makeField('วันที่ E-App สถานะ 06 ส่งเอกสารให้การเงิน', item['วันที่ E-App สถานะ 06 ส่งเอกสารให้การเงิน'])}
+          ${makeField('ชื่อลูกค้าที่ต้องการโอนเงิน', item['ชื่อลูกค้าที่ต้องการโอนเงิน'])}
+          ${makeField('อีเมล์', item['อีเมล์'])}
+          ${makeField('เบอร์ติดต่อ', item['เบอร์ติดต่อ'])}
+          ${makeField('รหัสบัญชี', item['รหัสบัญชี'])}
+          ${makeField('ชื่อบัญชี', item['ชื่อบัญชี'])}
+        </div>
+      `;
+
+      // 4) สาเหตุความเสียหาย & จุดเกิดเหตุ
+      document.getElementById('tab-pane-3').innerHTML = `
+        <div class="bg-white p-5 rounded-2xl shadow-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${makeField('ประเภทความเสียหาย', item['ประเภทความเสียหาย'])}
+          ${makeField('จุดที่เกิดเหตุ', item['จุดที่เกิดเหตุ'])}
+          ${makeField('ขั้นตอนการทำงาน', item['ขั้นตอนการทำงาน'])}
+          ${makeField('สาเหตุ', item['สาเหตุ'])}
+        </div>
+      `;
+
+      // 5) การประเมินผู้รับผิดชอบ
+      document.getElementById('tab-pane-4').innerHTML = `
+        <div class="bg-white p-5 rounded-2xl shadow-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${makeField('หน่วยงานที่ทำให้เกิดเหตุ', item['หน่วยงานที่ทำให้เกิดเหตุ'])}
+          ${makeField('ภาคที่ทำให้เกิดเหตุ', item['ภาคที่ทำให้เกิดเหตุ'])}
+          ${makeField('ส่วนงานที่ทำให้เกิดเหตุ', item['ส่วนงานที่ทำให้เกิดเหตุ'])}
+          ${makeField('ผู้รับผิดชอบ', item['ผู้รับผิดชอบ'])}
+          ${makeField('บริษัท(บาท)', formatCurrencyLocal(item['บริษัท(บาท)']))}
+          ${makeField('พนักงาน(บาท)', formatCurrencyLocal(item['พนักงาน(บาท)']))}
+          ${makeField('ผู้ประกอบการรถร่วม (บาท)', formatCurrencyLocal(item['ผู้ประกอบการรถร่วม (บาท)']))}
+          ${makeField('ผู้ประกอบการ Drop point (บาท)', formatCurrencyLocal(item['ผู้ประกอบการ Drop point (บาท)']))}
+        </div>
+      `;
+
+      // 6) สถานะเคลม & เคลียร์ (A/B Status)
+      document.getElementById('tab-pane-5').innerHTML = `
+        <div class="bg-white p-5 rounded-2xl shadow-card space-y-4">
+          <div class="border-b border-slate-100 pb-3 flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+            <div>
+              <span class="text-[10px] text-slate-400 block">สถานะหลักการเคลม (A Status)</span>
+              <span class="text-sm font-bold text-brand-navy">${item['สถานะเคลม'] || '-'}</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">สถานะหลักการเคลียร์ (B Status)</span>
+              <span class="text-sm font-bold text-purple-700">${item['สถานะเคลียร์'] || '-'}</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+              <h4 class="text-xs font-bold text-brand-navy border-b pb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-hourglass-half"></i> รายละเอียด A Status กระบวนการพิจารณาเคลม</h4>
+              ${makeField('A00 อยู่ระหว่างการพิจารณา', item['A00 อยู่ระหว่างการพิจารณา'])}
+              ${makeField('A01  อยู่ระหว่างการส่งเอกสารประกอบการเคลม', item['A01  อยู่ระหว่างการส่งเอกสารประกอบการเคลม'])}
+              ${makeField('A02 อยู่ระหว่างการตรวจสอบเอกสาร', item['A02 อยู่ระหว่างการตรวจสอบเอกสาร'])}
+              ${makeField('A03 อยู่ระหว่างการโอนเงิน', item['A03 อยู่ระหว่างการโอนเงิน'])}
+              ${makeField('A04 โอนเงิน', item['A04 โอนเงิน'])}
+              ${makeField('A89  ปิดจบ ไม่เคลม', item['A89  ปิดจบ ไม่เคลม'])}
+              ${makeField('ผู้แจ้งเรื่องขอเคลม', item['ผู้แจ้งเรื่องขอเคลม'])}
+              ${makeField('เงื่อนไขการรับสินค้า/เงื่อนไขการเคลม', item['เงื่อนไขการรับสินค้า/เงื่อนไขการเคลม'])}
+              ${makeField('พิจารณาการเคลมตามเงื่อนไขของบริษัทฯ', item['พิจารณาการเคลมตามเงื่อนไขของบริษัทฯ'])}
+              ${makeField('สาเหตุไม่เคลม', item['สาเหตุไม่เคลม'])}
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+              <h4 class="text-xs font-bold text-purple-700 border-b pb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-file-signature"></i> รายละเอียด B Status กระบวนการเคลียร์ภาระความรับผิดชอบ</h4>
+              ${makeField('B00 อยู่ระหว่างการประเมินผู้รับผิดชอบ', item['B00 อยู่ระหว่างการประเมินผู้รับผิดชอบ'])}
+              ${makeField('B01 อยู่ระหว่างการตอบกลับของ DC', item['B01 อยู่ระหว่างการตอบกลับของ DC'])}
+              ${makeField('B02 อยู่ระหว่างการอนุมัติของผู้บริหาร', item['B02 อยู่ระหว่างการอนุมัติของผู้บริหาร'])}
+              ${makeField('B03 ค้างส่งเอกสารหักเงิน', item['B03 ค้างส่งเอกสารหักเงิน'])}
+              ${makeField('B0301 อยู่ระหว่าง การโอนเงินให้ลูกค้า', item['B0301 อยู่ระหว่าง การโอนเงินให้ลูกค้า'])}
+              ${makeField('B04 เคลียร์รับเอกสาร', item['B04 เคลียร์รับเอกสาร'])}
+              ${makeField('B05 บัญชีรับเอกสาร', item['B05 บัญชีรับเอกสาร'])}
+              ${makeField('ซากสินค้า', item['ซากสินค้า'])}
+              ${makeField('สถานะซากสินค้า', item['สถานะซากสินค้า'])}
+              ${makeField('สถานะซากสินค้า (2)', item['สถานะซากสินค้า (2)'])}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Export back to Excel logic using SheetJS
+    function exportToExcel() {
+      if (filteredClaims.length === 0) {
+        alert("ไม่มีข้อมูลที่จะส่งออก");
+        return;
+      }
+
+      const confirmExport = confirm(`ต้องการส่งออกข้อมูลปัจจุบันจำนวน ${filteredClaims.length} รายการ ไปเป็นไฟล์ Excel ใช่หรือไม่?`);
+      if (!confirmExport) return;
+
+      // Map structured back to correct headers names in array representation for SheetJS
+      // Retrieve headers keys list from first item
+      const keys = Object.keys(allClaims[0]);
+      
+      const dataToExport = filteredClaims.map((item, idx) => {
+        const rowObj = {};
+        keys.forEach(k => {
+          if (k === 'index') {
+            rowObj['ลำดับ'] = idx + 1;
+          } else {
+            // Remove secondary suffix label in key for export
+            const cleanKey = k.replace(/\s*\(2\)$/, '');
+            rowObj[cleanKey] = item[k];
+          }
+        });
+        return rowObj;
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "ClearClaims");
+      
+      const fileName = `ClearClaimNEX_Export_${new Date().toISOString().slice(0,10)}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    }
+  </script>
+</body>
+</html>
