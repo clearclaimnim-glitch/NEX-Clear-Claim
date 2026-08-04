@@ -1,4 +1,4 @@
-const INITIAL_MOCK_DATA = [
+﻿const INITIAL_MOCK_DATA = [
     {
         "index":  "1",
         "เลขที่รับบิลเข้าระบบเคลียร์เคลมสินค้า":  "2006905000143",
